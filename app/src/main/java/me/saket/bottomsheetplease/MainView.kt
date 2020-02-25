@@ -9,6 +9,9 @@ import com.squareup.contour.ContourLayout
 import io.reactivex.Observable
 import io.reactivex.android.schedulers.AndroidSchedulers.mainThread
 import me.saket.bottomsheetplease.shiet.BottomShietOverlay
+import me.saket.bottomsheetplease.shiet.BottomShietState.Expanded
+import me.saket.bottomsheetplease.shiet.BottomShietState.Hidden
+import me.saket.bottomsheetplease.shiet.BottomShietState.Peeking
 import java.util.concurrent.TimeUnit.SECONDS
 
 @SuppressLint("SetTextI18n", "CheckResult")
@@ -22,7 +25,13 @@ class MainView(context: Context) : ContourLayout(context) {
     )
   }
 
-  private val sheetOverlay = BottomShietOverlay(context).apply {
+  private val sheetStates = listOf(
+      Hidden,
+      Peeking(at = 200.dip),
+      Expanded
+  )
+
+  private val sheetOverlay = BottomShietOverlay(context, sheetStates).apply {
     setBackgroundColor(Color.CYAN)
     applyLayout(
         x = matchParentX(),
