@@ -5,6 +5,7 @@ import android.content.Context
 import android.view.Gravity.BOTTOM
 import android.view.View
 import android.widget.FrameLayout
+import androidx.core.view.ViewCompat.TYPE_TOUCH
 import androidx.core.view.doOnPreDraw
 import androidx.core.view.updateLayoutParams
 import kotlin.math.max
@@ -18,6 +19,9 @@ class BottomShietOverlay(
   private lateinit var shietView: View
   private var state: BottomShietState = states[0]
 
+  private val heightMinusPadding
+    get() = height - paddingTop - paddingBottom
+
   override fun onViewAdded(child: View) {
     super.onViewAdded(child)
     check(childCount == 1) { "Can only have one direct child that acts as the sheet." }
@@ -29,7 +33,7 @@ class BottomShietOverlay(
 
     // TODO: introduce "peek" height instead.
     doOnPreDraw {
-      shietView.offsetTopAndBottom(heightMinusPadding() / 2)
+      shietView.offsetTopAndBottom(heightMinusPadding / 2)
     }
   }
 
@@ -50,38 +54,37 @@ class BottomShietOverlay(
   }
 
   override fun onNestedPreScroll(target: View, dx: Int, dy: Int, consumed: IntArray, type: Int) {
-    val consumedDy = tryConsumingNestedScroll(dy)
+    val consumedDy = computeNestedScrollToConsume(dy)
     consumed[1] = consumedDy
+
+    val isFling = type != TYPE_TOUCH
+    if (isFling.not()) {
+      shietView.offsetTopAndBottom(-consumedDy)
+    }
   }
 
-  private fun heightMinusPadding() = height - paddingTop - paddingBottom
-
-  private fun tryConsumingNestedScroll(dy: Int): Int {
+  private fun computeNestedScrollToConsume(dy: Int): Int {
     val isScrollingUpwards = dy > 0
-    val sheetTopBound = max(paddingTop, heightMinusPadding() - shietView.height)
+    val sheetTopBound = max(paddingTop, heightMinusPadding - shietView.height)
     val sheetBottomBound = height - paddingBottom
 
     if (isScrollingUpwards) {
       val canSheetScrollUp = shietView.top > sheetTopBound
       if (canSheetScrollUp) {
-        val clampedDy = when {
+        return when {
           // Don't let the sheet go beyond its top bounds.
           shietView.top - dy < sheetTopBound -> shietView.top - sheetTopBound
           else -> dy
         }
-        shietView.offsetTopAndBottom(-clampedDy)
-        return clampedDy
       }
     } else {
       val canSheetContentScrollDown = shietView.canScrollVertically(-1)
       if (canSheetContentScrollDown.not()) {
         // Don't let the sheet go beyond its bottom bounds.
-        val clampedDy = when {
+        return when {
           shietView.top - dy > sheetBottomBound -> shietView.top - sheetBottomBound
           else -> dy
         }
-        shietView.offsetTopAndBottom(-clampedDy)
-        return clampedDy
       }
     }
 

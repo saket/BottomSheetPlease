@@ -51,6 +51,14 @@ class BatmanSheetView(context: Context) : NestedScrollView(context) {
        I'm Batman Bruce Wayne, eccentric billionaire. I'm not wearing hockey pads. Well, you see... I'm buying this hotel and setting some new rules about the pool area. My anger outweights my guilt.
 
        This isn't a car. Swear to me! Bats frighten me. It's time my enemies shared my dread.
+       
+       I'm not wearing hockey pads. Bats frighten me. It's time my enemies shared my dread. I will go back to Gotham and I will fight men Iike this but I will not become an executioner.
+
+       I will go back to Gotham and I will fight men Iike this but I will not become an executioner. I'm not wearing hockey pads.
+
+       This isn't a car. Bats frighten me. It's time my enemies shared my dread. No guns, no killing.
+
+       I'm Batman Well, you see... I'm buying this hotel and setting some new rules about the pool area. It was a dog. It was a big dog. I will go back to Gotham and I will fight men Iike this but I will not become an executioner.
     """.trimIndent()
   }
 }
