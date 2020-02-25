@@ -53,7 +53,7 @@ class MainView(context: Context) : ContourLayout(context) {
   }
 
   private fun showSheet(withAnim: Boolean) {
-    val sheetView = SheetView(context)
+    val sheetView = BatmanSheetView(context)
     sheetOverlay.addView(sheetView)
   }
 

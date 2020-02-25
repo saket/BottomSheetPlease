@@ -4,10 +4,11 @@ import android.content.Context
 import android.view.Gravity.BOTTOM
 import android.view.View
 import android.widget.FrameLayout
-import androidx.core.view.NestedScrollingParent3
+import androidx.core.view.doOnPreDraw
 import androidx.core.view.updateLayoutParams
+import timber.log.Timber
 
-class BottomShietOverlay(context: Context) : FrameLayout(context), NestedScrollingParent3 {
+class BottomShietOverlay(context: Context) : FrameLayout(context), SimpleNestedScrollingParent {
 
   private lateinit var shietView: View
 
@@ -19,45 +20,58 @@ class BottomShietOverlay(context: Context) : FrameLayout(context), NestedScrolli
     shietView.updateLayoutParams<LayoutParams> {
       gravity = BOTTOM
     }
+
+    // TODO: introduce "peek" height instead.
+    doOnPreDraw {
+      shietView.offsetTopAndBottom((height - paddingTop - paddingBottom) / 2)
+    }
   }
 
-  override fun onStartNestedScroll(child: View, target: View, axes: Int, type: Int): Boolean =
-    onStartNestedScroll(child, target, axes)
-
-  override fun onStartNestedScroll(child: View, target: View, nestedScrollAxes: Int): Boolean =
-  // Accept all nested scroll events from the child. The decision of whether
-    // or not to actually scroll is calculated inside onNestedPreScroll().
-    true
-
-  override fun onNestedScrollAccepted(child: View, target: View, axes: Int, type: Int) =
-    Unit
-
-  override fun onStopNestedScroll(target: View, type: Int) = Unit
-
-  override fun onNestedPreScroll(target: View, dx: Int, dy: Int, consumed: IntArray, type: Int) {
-    onNestedPreScroll(target, dx, dy, consumed)
+  override fun onStartNestedScroll(child: View, target: View, nestedScrollAxes: Int): Boolean {
+    return super<SimpleNestedScrollingParent>.onStartNestedScroll(child, target, nestedScrollAxes)
   }
 
   override fun onNestedPreScroll(target: View, dx: Int, dy: Int, consumed: IntArray) {
-    // TODO: Handle.
+    val consumedDy = tryConsumingNestedScroll(dy)
+    Timber.i("consumedDy: $consumedDy")
+    Timber.i("sheet y: ${shietView.top}")
+    consumed[1] = consumedDy
   }
 
-  override fun onNestedScroll(
-    target: View,
-    dxConsumed: Int,
-    dyConsumed: Int,
-    dxUnconsumed: Int,
-    dyUnconsumed: Int,
-    type: Int,
-    consumed: IntArray
-  ) = onNestedScroll(target, dxConsumed, dyConsumed, dxUnconsumed, dyUnconsumed, type)
+  private fun tryConsumingNestedScroll(dy: Int): Int {
+    val isScrollingUpwards = dy > 0
+    Timber.i("---------------------------")
+    Timber.i("dy = $dy, isScrollingUpwards? $isScrollingUpwards")
+    Timber.i("shietView.top: ${shietView.top}")
+    Timber.i("top: $top, paddingTop: $paddingTop")
 
-  override fun onNestedScroll(
-    target: View,
-    dxConsumed: Int,
-    dyConsumed: Int,
-    dxUnconsumed: Int,
-    dyUnconsumed: Int,
-    type: Int
-  ) = Unit
+    val sheetTopBound = paddingTop
+    val sheetBottomBound = height - paddingBottom
+
+    if (isScrollingUpwards) {
+      val canSheetScrollUp = shietView.top > sheetTopBound
+      if (canSheetScrollUp) {
+        val clampedDy = when {
+          // Don't let the sheet go beyond its bounds.
+          shietView.top - dy < sheetTopBound -> shietView.top - sheetTopBound
+          else -> dy
+        }
+        shietView.offsetTopAndBottom(-clampedDy)
+        return clampedDy
+      }
+    } else {
+      val canSheetContentScrollDown = shietView.canScrollVertically(-1)
+      if (canSheetContentScrollDown.not()) {
+        // Don't let the sheet go beyond its bounds.
+        val clampedDy = when {
+          shietView.top - dy > sheetBottomBound -> shietView.top - sheetBottomBound
+          else -> dy
+        }
+        shietView.offsetTopAndBottom(-clampedDy)
+        return clampedDy
+      }
+    }
+
+    return 0
+  }
 }

@@ -7,12 +7,14 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.util.TypedValue
 import android.view.View
+import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
 import android.widget.FrameLayout.LayoutParams.MATCH_PARENT
 import android.widget.TextView
+import android.widget.Toast
 import androidx.core.widget.NestedScrollView
 
 @SuppressLint("CheckResult", "SetTextI18n")
-class SheetView(context: Context) : NestedScrollView(context) {
+class BatmanSheetView(context: Context) : NestedScrollView(context) {
 
   private val textView = TextView(context).apply {
     text = BATMAN_IPSUM
@@ -29,7 +31,11 @@ class SheetView(context: Context) : NestedScrollView(context) {
     isFillViewport = true
     addView(textView)
 
-    layoutParams = LayoutParams(MATCH_PARENT, dip(200))
+    layoutParams = LayoutParams(MATCH_PARENT, WRAP_CONTENT)
+
+    textView.setOnClickListener {
+      Toast.makeText(context, "Sheet clicked", Toast.LENGTH_SHORT).show()
+    }
 
     // Change the height while the sheet's entry animation is ongoing.
 //    Observable.timer(150, MILLISECONDS, mainThread())
