@@ -2,14 +2,16 @@ package me.saket.bottomsheetplease
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Paint
 import android.util.TypedValue
 import android.view.View
 import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
 import android.widget.FrameLayout.LayoutParams.MATCH_PARENT
 import android.widget.TextView
-import android.widget.Toast
 import androidx.core.widget.NestedScrollView
+import kotlin.random.Random
 
 @SuppressLint("CheckResult", "SetTextI18n")
 class BatmanSheetView(context: Context) : NestedScrollView(context) {
@@ -20,17 +22,19 @@ class BatmanSheetView(context: Context) : NestedScrollView(context) {
     setBackgroundColor(Color.YELLOW)
   }
 
+  private val dimensionsPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    color = Color.DKGRAY
+    strokeWidth = dip(2).toFloat()
+  }
+
   init {
     isFillViewport = true
     addView(textView)
     setPadding(dip(16), dip(16), dip(16), dip(16))
     setBackgroundColor(Color.BLUE)
+    setWillNotDraw(false)
 
     layoutParams = LayoutParams(MATCH_PARENT, WRAP_CONTENT)
-
-    textView.setOnClickListener {
-      Toast.makeText(context, "Sheet clicked", Toast.LENGTH_SHORT).show()
-    }
 
     // Change the height while the sheet's entry animation is ongoing.
     //Observable.interval(1, SECONDS, mainThread())
@@ -38,6 +42,16 @@ class BatmanSheetView(context: Context) : NestedScrollView(context) {
     //    .subscribe {
     //      textView.text = BATMAN_IPSUM.substring(0, Random.nextInt(until = BATMAN_IPSUM.length / 2))
     //    }
+
+    textView.setOnClickListener {
+      textView.text = BATMAN_IPSUM.substring(0, Random.nextInt(until = BATMAN_IPSUM.length))
+    }
+  }
+
+  override fun draw(canvas: Canvas) {
+    super.draw(canvas)
+    canvas.drawLine(0f, 0f, width.toFloat(), height.toFloat(), dimensionsPaint)
+    canvas.drawLine(width.toFloat(), 0f, 0f, height.toFloat(), dimensionsPaint)
   }
 
   companion object {
