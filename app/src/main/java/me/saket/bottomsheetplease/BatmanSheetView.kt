@@ -33,13 +33,11 @@ class BatmanSheetView(context: Context) : NestedScrollView(context) {
     }
 
     // Change the height while the sheet's entry animation is ongoing.
-//    Observable.timer(150, MILLISECONDS, mainThread())
-//        .takeUntil(detaches())
-//        .subscribe {
-//          updateLayoutParams<LayoutParams> {
-//            height = dip(200)
-//          }
-//        }
+    //Observable.interval(1, SECONDS, mainThread())
+    //    .takeUntil(detaches())
+    //    .subscribe {
+    //      textView.text = BATMAN_IPSUM.substring(0, Random.nextInt(until = BATMAN_IPSUM.length / 2))
+    //    }
   }
 
   companion object {

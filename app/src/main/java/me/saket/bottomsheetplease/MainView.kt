@@ -27,7 +27,7 @@ class MainView(context: Context) : ContourLayout(context) {
 
   private val sheetStates = listOf(
       Hidden,
-      Peeking(at = 200.dip),
+      Peeking(height = 200.dip),
       Expanded
   )
 
