@@ -89,43 +89,42 @@ class BottomShietOverlay(
     }
   }
 
-  //<editor-fold desc="nested scrolling bloat">
-  override fun onStartNestedScroll(child: View, target: View, nestedScrollAxes: Int): Boolean {
-    return super<SimpleNestedScrollingParent>.onStartNestedScroll(child, target, nestedScrollAxes)
-  }
+  override fun onStopNestedScroll(target: View, type: Int) {
+    super.onStopNestedScroll(target)
 
-  override fun onNestedPreScroll(target: View, dx: Int, dy: Int, consumed: IntArray) {
-    super<SimpleNestedScrollingParent>.onNestedPreScroll(target, dx, dy, consumed)
-  }
+    // For backward compatibility reasons, a nested scroll stops _twice_.
+    // Once when the user stops dragging and once again when the content
+    // stops flinging.
+    val hasStoppedDragging = type == TYPE_TOUCH
 
-  override fun onStopNestedScroll(target: View) {
-    super<SimpleNestedScrollingParent>.onStopNestedScroll(target)
-  }
-
-  override fun onNestedScroll(target: View, dxConsumed: Int, dyConsumed: Int, dxUnconsumed: Int, dyUnconsumed: Int) {
-    super<SimpleNestedScrollingParent>.onNestedScroll(target, dxConsumed, dyConsumed, dxUnconsumed, dyUnconsumed)
-  }
-  //</editor-fold>
-
-  override fun onNestedPreScroll(target: View, dx: Int, dy: Int, consumed: IntArray, type: Int) {
-    val consumedDy = computeNestedScrollToConsume(dy)
-    consumed[1] = consumedDy
-
-    val isFling = type != TYPE_TOUCH
-    if (isFling.not()) {
-      moveSheetBy(-consumedDy)
+    if (hasStoppedDragging) {
+      // TODO: do something for real.
+      setState(currentState, animate = true)
     }
   }
 
-  private fun computeNestedScrollToConsume(dy: Int): Int {
+  override fun onNestedPreScroll(target: View, dx: Int, dy: Int, consumed: IntArray, type: Int) {
+    val consumeResult = computeNestedScrollToConsume(dy)
+    consumed[1] = consumeResult.dyToConsume
+
+    val isFling = type != TYPE_TOUCH
+    if (isFling.not()) {
+      moveSheetBy(-consumeResult.moveSheetBy)
+    }
+  }
+
+  private fun computeNestedScrollToConsume(dy: Int): ConsumeResult {
     val isScrollingUpwards = dy > 0
     val sheetTopBound = max(paddingTop, heightMinusPadding - shietView.height)
     val sheetBottomBound = height - paddingBottom
 
+    var dyToConsume = 0
+    var moveSheetBy = 0
+
     if (isScrollingUpwards) {
       val canSheetScrollUp = shietView.top > sheetTopBound
       if (canSheetScrollUp) {
-        return when {
+        moveSheetBy = when {
           // Don't let the sheet go beyond its top bounds.
           shietView.top - dy < sheetTopBound -> shietView.top - sheetTopBound
           else -> dy
@@ -135,13 +134,18 @@ class BottomShietOverlay(
       val canSheetContentScrollDown = shietView.canScrollVertically(-1)
       if (canSheetContentScrollDown.not()) {
         // Don't let the sheet go beyond its bottom bounds.
-        return when {
+        moveSheetBy = when {
           shietView.top - dy > sheetBottomBound -> shietView.top - sheetBottomBound
           else -> dy
         }
       }
     }
 
-    return 0
+    // TODO: block flings until the sheet can't be scrolled.
+    dyToConsume = moveSheetBy
+
+    return ConsumeResult(dyToConsume, moveSheetBy)
   }
+
+  class ConsumeResult(val dyToConsume: Int, val moveSheetBy: Int)
 }

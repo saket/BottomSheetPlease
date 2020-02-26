@@ -17,7 +17,7 @@ import kotlin.random.Random
 class BatmanSheetView(context: Context) : NestedScrollView(context) {
 
   private val textView = TextView(context).apply {
-    text = BATMAN_IPSUM
+    text = BATMAN_IPSUM + BATMAN_IPSUM
     setPadding(dip(16), dip(16), dip(16), dip(16))
     setBackgroundColor(Color.YELLOW)
   }
@@ -50,8 +50,8 @@ class BatmanSheetView(context: Context) : NestedScrollView(context) {
 
   override fun draw(canvas: Canvas) {
     super.draw(canvas)
-    canvas.drawLine(0f, 0f, width.toFloat(), height.toFloat(), dimensionsPaint)
-    canvas.drawLine(width.toFloat(), 0f, 0f, height.toFloat(), dimensionsPaint)
+    canvas.drawLine(0f, 0f, width.toFloat(), textView.height.toFloat() + paddingTop, dimensionsPaint)
+    canvas.drawLine(width.toFloat(), 0f, 0f, textView.height.toFloat() + paddingTop, dimensionsPaint)
   }
 
   companion object {
