@@ -17,7 +17,7 @@ import kotlin.random.Random
 class BatmanSheetView(context: Context) : NestedScrollView(context) {
 
   private val textView = TextView(context).apply {
-    text = BATMAN_IPSUM + BATMAN_IPSUM
+    text = BATMAN_IPSUM
     setPadding(dip(16), dip(16), dip(16), dip(16))
     setBackgroundColor(Color.YELLOW)
   }

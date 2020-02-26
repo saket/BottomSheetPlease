@@ -61,7 +61,7 @@ class BottomShietOverlay(
   }
 
   /** setState()? moveToState()? animateToState()? */
-  fun setState(state: BottomShietState, animate: Boolean = false) {
+  fun setState(state: BottomShietState, animate: Boolean = true) {
     if (state == PEEKING) {
       require(peekHeight != null && peekHeight!! > 0) { "What's there to peek even?" }
     }
@@ -77,6 +77,7 @@ class BottomShietOverlay(
             // Keep aligned with the top if the sheet extends beyond
             // the overlay's bounds. Otherwise, align with the bottom.
             // Update: this seems to happen automatically.
+            moveSheetTo(max(paddingTop, heightMinusPadding - shietView.height))
           }
           PEEKING -> {
             // Keep the sheet at peek height.
@@ -99,7 +100,7 @@ class BottomShietOverlay(
 
     if (hasStoppedDragging) {
       // TODO: do something for real.
-      //setState(currentState, animate = true)
+      setState(currentState, animate = true)
     }
   }
 

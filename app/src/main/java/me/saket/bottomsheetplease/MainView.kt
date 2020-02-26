@@ -4,22 +4,35 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Color
 import android.widget.Button
-import com.jakewharton.rxbinding3.view.detaches
+import androidx.core.view.doOnLayout
 import com.squareup.contour.ContourLayout
-import io.reactivex.Observable
-import io.reactivex.android.schedulers.AndroidSchedulers.mainThread
 import me.saket.bottomsheetplease.shiet.BottomShietOverlay
 import me.saket.bottomsheetplease.shiet.BottomShietState
-import java.util.concurrent.TimeUnit.SECONDS
 
 @SuppressLint("SetTextI18n", "CheckResult")
 class MainView(context: Context) : ContourLayout(context) {
 
-  private val toggleButton = Button(context).apply {
-    text = "Toggle sheet"
+  private val expandedButton = Button(context).apply {
+    text = "Expanded"
     applyLayout(
-        x = centerHorizontallyTo { parent.centerX() },
+        x = leftTo { parent.left() + 16.xdip },
         y = topTo { parent.top() + 16.ydip }
+    )
+  }
+
+  private val peekButton = Button(context).apply {
+    text = "Peeking"
+    applyLayout(
+        x = leftTo { expandedButton.right() },
+        y = topTo { expandedButton.top() }
+    )
+  }
+
+  private val hiddenButton = Button(context).apply {
+    text = "Hidden"
+    applyLayout(
+        x = leftTo { peekButton.right() },
+        y = topTo { peekButton.top() }
     )
   }
 
@@ -37,31 +50,28 @@ class MainView(context: Context) : ContourLayout(context) {
   init {
     setBackgroundColor(context.getColor(R.color.gray_200))
 
-    toggleButton.setOnClickListener {
-      toggleSheet(withAnim = true)
+    expandedButton.setOnClickListener {
+      if (sheetOverlay.childCount == 0) {
+        val sheetView = BatmanSheetView(context)
+        sheetOverlay.addView(sheetView)
+      }
+      sheetOverlay.setState(BottomShietState.EXPANDED)
     }
+
+    peekButton.setOnClickListener {
+      sheetOverlay.setState(BottomShietState.PEEKING)
+    }
+
+    hiddenButton.setOnClickListener {
+      sheetOverlay.setState(BottomShietState.HIDDEN)
+    }
+
     sheetOverlay.setOnClickListener {
-      hideSheet()
+      sheetOverlay.removeAllViews()
     }
 
-    Observable.timer(1, SECONDS, mainThread())
-        .takeUntil(detaches())
-        .subscribe {
-          showSheet(withAnim = true)
-        }
-  }
-
-  private fun toggleSheet(withAnim: Boolean) = when {
-    sheetOverlay.childCount > 0 -> hideSheet()
-    else -> showSheet(withAnim)
-  }
-
-  private fun showSheet(withAnim: Boolean) {
-    val sheetView = BatmanSheetView(context)
-    sheetOverlay.addView(sheetView)
-  }
-
-  private fun hideSheet() {
-    sheetOverlay.removeAllViews()
+    doOnLayout {
+      peekButton.performClick()
+    }
   }
 }
