@@ -99,29 +99,27 @@ class BottomShietOverlay(
 
     if (hasStoppedDragging) {
       // TODO: do something for real.
-      setState(currentState, animate = true)
+      //setState(currentState, animate = true)
     }
   }
 
   override fun onNestedPreScroll(target: View, dx: Int, dy: Int, consumed: IntArray, type: Int) {
-    val consumeResult = computeNestedScrollToConsume(dy)
+    val consumeResult = computeNestedScrollToConsume(dy, isFling = type != TYPE_TOUCH)
     consumed[1] = consumeResult.dyToConsume
-
-    val isFling = type != TYPE_TOUCH
-    if (isFling.not()) {
-      moveSheetBy(-consumeResult.moveSheetBy)
-    }
+    moveSheetBy(-consumeResult.moveSheetBy)
   }
 
-  private fun computeNestedScrollToConsume(dy: Int): ConsumeResult {
+  private fun computeNestedScrollToConsume(dy: Int, isFling: Boolean): ConsumeResult {
     val isScrollingUpwards = dy > 0
     val sheetTopBound = max(paddingTop, heightMinusPadding - shietView.height)
     val sheetBottomBound = height - paddingBottom
 
-    var dyToConsume = 0
     var moveSheetBy = 0
 
-    if (isScrollingUpwards) {
+    if (isFling) {
+      moveSheetBy = 0
+
+    } else if (isScrollingUpwards) {
       val canSheetScrollUp = shietView.top > sheetTopBound
       if (canSheetScrollUp) {
         moveSheetBy = when {
@@ -130,20 +128,21 @@ class BottomShietOverlay(
           else -> dy
         }
       }
+
     } else {
       val canSheetContentScrollDown = shietView.canScrollVertically(-1)
       if (canSheetContentScrollDown.not()) {
-        // Don't let the sheet go beyond its bottom bounds.
         moveSheetBy = when {
+          // Don't let the sheet go beyond its bottom bounds.
           shietView.top - dy > sheetBottomBound -> shietView.top - sheetBottomBound
           else -> dy
         }
       }
     }
 
-    // TODO: block flings until the sheet can't be scrolled.
-    dyToConsume = moveSheetBy
-
+    // Allow flings on the content only once the sheet can't scroll further.
+    val shouldBlockFlings = shietView.top != sheetTopBound
+    val dyToConsume = if (shouldBlockFlings) dy else moveSheetBy
     return ConsumeResult(dyToConsume, moveSheetBy)
   }
 
