@@ -7,7 +7,7 @@ import android.view.View
 import android.widget.FrameLayout
 import androidx.annotation.Px
 import androidx.core.view.ViewCompat.TYPE_TOUCH
-import androidx.core.view.doOnPreDraw
+import androidx.core.view.doOnLayout
 import androidx.core.view.updateLayoutParams
 import me.saket.bottomsheetplease.shiet.BottomShietState.EXPANDED
 import me.saket.bottomsheetplease.shiet.BottomShietState.HIDDEN
@@ -27,6 +27,9 @@ class BottomShietOverlay(
   private val heightMinusPadding
     get() = height - paddingTop - paddingBottom
 
+  private val hasSheet
+    get() = ::shietView.isInitialized
+
   override fun onViewAdded(child: View) {
     super.onViewAdded(child)
     check(childCount == 1) { "Can only have one direct child that acts as the sheet." }
@@ -40,28 +43,17 @@ class BottomShietOverlay(
   override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
     super.onLayout(changed, left, top, right, bottom)
 
-    val hasSheet = ::shietView.isInitialized
-    if (hasSheet.not()) {
-      return
-    }
-
-    val exhausted = when (currentState) {
-      EXPANDED -> {
-        // Keep aligned with the top if the sheet extends beyond
-        // the overlay's bounds. Otherwise, align with the bottom.
-        // Update: this seems to happen automatically.
-      }
-      PEEKING -> {
-        // Keep the sheet at peek height.
-        val peekOffsetFromTop = height - peekHeight!!.coerceAtMost(shietView.height)
-        moveSheetTo(peekOffsetFromTop)
-      }
-      HIDDEN -> moveSheetTo(bottom)
+    // Setting the state again will ensure the
+    // sheet is re-positioned w.r.t. the new bounds.
+    if (hasSheet) {
+      setState(currentState, animate = false)
     }
   }
 
   private fun moveSheetTo(y: Int) {
-    shietView.offsetTopAndBottom(y - shietView.top)
+    if (shietView.top != y) {
+      shietView.offsetTopAndBottom(y - shietView.top)
+    }
   }
 
   private fun moveSheetBy(dy: Int) {
@@ -71,16 +63,30 @@ class BottomShietOverlay(
   /** setState()? moveToState()? animateToState()? */
   fun setState(state: BottomShietState, animate: Boolean = false) {
     if (state == PEEKING) {
-      require(peekHeight != null && peekHeight!! > 0) { "Nothing to peek" }
+      require(peekHeight != null && peekHeight!! > 0) { "What's there to peek even?" }
     }
 
-    if (isLaidOut.not()) {
-      doOnPreDraw { setState(state, animate) }
-      return
-    }
-
-    // TODO
     currentState = state
+
+    // TODO: animate?
+
+    if (hasSheet) {
+      doOnLayout {
+        val exhausted = when (currentState) {
+          EXPANDED -> {
+            // Keep aligned with the top if the sheet extends beyond
+            // the overlay's bounds. Otherwise, align with the bottom.
+            // Update: this seems to happen automatically.
+          }
+          PEEKING -> {
+            // Keep the sheet at peek height.
+            val peekOffsetFromTop = height - peekHeight!!.coerceAtMost(shietView.height)
+            moveSheetTo(peekOffsetFromTop)
+          }
+          HIDDEN -> moveSheetTo(bottom)
+        }
+      }
+    }
   }
 
   //<editor-fold desc="nested scrolling bloat">
