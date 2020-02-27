@@ -1,17 +1,19 @@
 package me.saket.bottomsheetplease.shiet
 
+import android.animation.ObjectAnimator
+import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.content.Context
 import android.view.Gravity.BOTTOM
 import android.view.MotionEvent
+import android.view.MotionEvent.ACTION_DOWN
+import android.view.MotionEvent.ACTION_UP
 import android.view.View
 import android.view.animation.Interpolator
 import android.widget.FrameLayout
 import androidx.annotation.Px
-import androidx.core.view.ViewCompat
-import androidx.core.view.ViewCompat.TYPE_NON_TOUCH
 import androidx.core.view.ViewCompat.TYPE_TOUCH
-import androidx.core.view.doOnLayout
+import androidx.core.view.doOnPreDraw
 import androidx.core.view.updateLayoutParams
 import me.saket.bottomsheetplease.shiet.BottomShietState.EXPANDED
 import me.saket.bottomsheetplease.shiet.BottomShietState.HIDDEN
@@ -27,7 +29,7 @@ class BottomShietOverlay(
   private var _shietView: View? = null
   private val shietView: View
     get() {
-      check(_shietView != null) { "Sheet isn't added yte" }
+      check(_shietView != null) { "Sheet isn't added yet" }
       return _shietView!!
     }
   private val hasSheet
@@ -35,6 +37,9 @@ class BottomShietOverlay(
 
   @Px var peekHeight: Int? = null
   private var currentState: BottomShietState = HIDDEN
+
+  private var sheetAnimator = ValueAnimator()
+  private var dragReleasedAtTop = false
 
   override fun onViewAdded(child: View) {
     super.onViewAdded(child)
@@ -61,39 +66,43 @@ class BottomShietOverlay(
     }
   }
 
-  // TODO: Wanna move everything to floats?
   private fun sheetY(): Int {
-//    return shietView.top
-    return shietView.translationY.toInt()
+    return shietView.top
   }
 
-  private fun moveSheetTo(y: Int) {
-//    if (shietView.top != y) {
-//      shietView.offsetTopAndBottom(y - shietView.top)
-//    }
-//    Timber.d("animating to $y")
-
-    // Copied from BottomSheetBehavior.
-    val interpolator = Interpolator { t ->
-      var t = t
-      t -= 1.0f
-      t * t * t * t * t + 1.0f
+  private fun moveSheetTo(y: Int, animate: Boolean = false) {
+    if (shietView.top == y) {
+      return
     }
 
-    shietView.animate().cancel()
-    shietView.animate()
-        .translationY(y.toFloat())
-        .setInterpolator(interpolator)
-        .setDuration(400)
-        .start()
+    sheetAnimator.cancel()
+
+    if (animate) {
+      // Copied from BottomSheetBehavior.
+      val interpolator = Interpolator { t ->
+        var t = t
+        t -= 1.0f
+        t * t * t * t * t + 1.0f
+      }
+
+      sheetAnimator = ObjectAnimator.ofInt(sheetY(), y).apply {
+        duration = 400
+        setInterpolator(interpolator)
+        addUpdateListener { anim ->
+          val nextY = anim.animatedValue as Int
+          shietView.offsetTopAndBottom(nextY - shietView.top)
+        }
+        start()
+      }
+    } else {
+      shietView.offsetTopAndBottom(y - shietView.top)
+    }
   }
 
   private fun moveSheetBy(dy: Int) {
-//    shietView.offsetTopAndBottom(dy)
     if (dy != 0) {
-      shietView.animate().cancel()
-//      Timber.i("moving by $dy")
-      shietView.translationY += dy
+      sheetAnimator.cancel()
+      shietView.offsetTopAndBottom(dy)
     }
   }
 
@@ -106,34 +115,33 @@ class BottomShietOverlay(
     currentState = state
 
     if (hasSheet) {
-      doOnLayout {
+      invalidate()
+      doOnPreDraw {
         val exhausted = when (currentState) {
           EXPANDED -> {
             // Keep aligned with the top if the sheet extends beyond
             // the overlay's bounds. Otherwise, align with the bottom.
             // Update: this seems to happen automatically.
-            moveSheetTo(sheetTopBound)
+            moveSheetTo(sheetTopBound, animate = true)
           }
           PEEKING -> {
             // Keep the sheet at peek height.
             val peekOffsetFromTop = height - peekHeight!!.coerceAtMost(shietView.height)
-            moveSheetTo(peekOffsetFromTop)
+            moveSheetTo(peekOffsetFromTop, animate = true)
           }
-          HIDDEN -> moveSheetTo(bottom)
+          HIDDEN -> moveSheetTo(bottom, animate = true)
         }
       }
     }
   }
 
-  private var sheetYOnStart = 0
+  private var distanceDragged = 0
 
   override fun onStartNestedScroll(child: View, target: View, axes: Int, type: Int): Boolean {
     // Accept all nested scroll events from the child. The decision of whether
     // or not to actually scroll is calculated inside onNestedPreScroll().
     if (type == TYPE_TOUCH) {
-      dragReleasedAtTop = true
-      sheetYOnStart = sheetY()
-      isDragging = true
+      distanceDragged = 0
     }
     return true
   }
@@ -141,35 +149,17 @@ class BottomShietOverlay(
   override fun onStopNestedScroll(target: View, type: Int) {
     super.onStopNestedScroll(target)
 
-//    Timber.i("onStopNestedScroll(type=$type)")
-
-    ViewCompat.stopNestedScroll(this, TYPE_TOUCH)
-    ViewCompat.stopNestedScroll(this, TYPE_NON_TOUCH)
-
     // For backward compatibility reasons, a nested scroll stops _twice_.
     // Once when the user stops dragging and once again when the content
     // stops flinging.
     if (type == TYPE_TOUCH) {
-      isDragging = false
-      Timber.i("------------")
-      Timber.i("Released at top? $dragReleasedAtTop")
       onRelease()
     }
   }
 
-  private var dragReleasedAtTop = false
-  private var isDragging = false
-
   private fun onRelease() {
-    val dy = sheetY() - sheetYOnStart
-//    Timber.i("------------------")
-//    Timber.d("Settling sheet")
-//    Timber.i("sheetYOnStart: $sheetYOnStart")
-//    Timber.i("sheetY: ${sheetY()}")
-//    Timber.i("dy: $dy")
-
-    if (dy != 0) {
-      val upwards = dy < 0
+    if (distanceDragged != 0) {
+      val upwards = distanceDragged < 0
       val nextState = when (currentState) {
         EXPANDED -> if (upwards) EXPANDED else PEEKING
         PEEKING -> if (upwards) EXPANDED else HIDDEN
@@ -180,9 +170,13 @@ class BottomShietOverlay(
   }
 
   override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
-    if (ev.action == MotionEvent.ACTION_UP) {
-      dragReleasedAtTop = sheetY() == sheetTopBound
+    if (hasSheet) {
+      when (ev.action) {
+        ACTION_DOWN -> dragReleasedAtTop = false
+        ACTION_UP -> dragReleasedAtTop = sheetY() == sheetTopBound
+      }
     }
+
     return super.dispatchTouchEvent(ev)
   }
 
@@ -196,7 +190,10 @@ class BottomShietOverlay(
   override fun onNestedPreScroll(target: View, dx: Int, dy: Int, consumed: IntArray, type: Int) {
     val dyToConsume = computeNestedScrollToConsume(dy, isFling = type != TYPE_TOUCH)
     consumed[1] = dyToConsume
+
+    // dy is negative when the scroll is downwards.
     moveSheetBy(-dyToConsume)
+    distanceDragged -= dyToConsume
   }
 
   private fun computeNestedScrollToConsume(dy: Int, isFling: Boolean): Int {
@@ -248,6 +245,4 @@ class BottomShietOverlay(
       check(isLaidOut)
       return height - paddingBottom
     }
-
-  class ConsumeResult(val dyToConsume: Int, val moveSheetBy: Int)
 }

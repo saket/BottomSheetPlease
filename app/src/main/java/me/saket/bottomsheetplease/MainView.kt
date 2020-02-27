@@ -73,7 +73,7 @@ class MainView(context: Context) : ContourLayout(context) {
 
     sheetOverlay.setOnClickListener {
       Timber.w("removing sheet")
-      sheetOverlay.removeAllViews()
+//      sheetOverlay.removeAllViews()
     }
 
     doOnLayout {
