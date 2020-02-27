@@ -12,13 +12,14 @@ import android.view.animation.Interpolator
 import android.widget.FrameLayout
 import androidx.annotation.Px
 import androidx.core.view.ViewCompat.TYPE_TOUCH
-import androidx.core.view.doOnPreDraw
+import androidx.core.view.doOnLayout
 import me.saket.bottomsheetplease.shiet.BottomShietState.EXPANDED
 import me.saket.bottomsheetplease.shiet.BottomShietState.HIDDEN
 import me.saket.bottomsheetplease.shiet.BottomShietState.PEEKING
-import timber.log.Timber
 import kotlin.math.max
 
+// TODO: offer callbacks et al
+// TODO: support sheets that don't implement NestedScrollingChild
 @SuppressLint("ViewConstructor")
 class BottomShietOverlay(
   context: Context
@@ -38,6 +39,7 @@ class BottomShietOverlay(
 
   private var sheetAnimator = ValueAnimator()
   private var dragReleasedAtTop = false
+  private var distanceDragged = 0
 
   override fun onViewAdded(child: View) {
     super.onViewAdded(child)
@@ -51,19 +53,29 @@ class BottomShietOverlay(
   }
 
   override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
-    super.onLayout(changed, left, top, right, bottom)
+    if (!hasSheet) {
+      return super.onLayout(changed, left, top, right, bottom)
+    }
 
-    if (hasSheet) {
-      Timber.i("---------------")
-      Timber.i("onLayout()")
-      Timber.i("Sheet height: ${shietView.height}")
+    // Maintain sheet's y-offset across size changes.
+    retainSheetY {
+      super.onLayout(changed, left, top, right, bottom)
     }
 
     // Setting the state again will ensure the
     // sheet is re-positioned w.r.t. the new bounds.
-    if (hasSheet) {
-      setState(currentState, animate = false)
+    setState(currentState, animate = true)
+  }
+
+  private fun retainSheetY(runnable: () -> Unit) {
+    // If the sheet hasn't been laid out yet, move it
+    // to the bottom so that it can animate upwards.
+    val savedY = when {
+      shietView.isLaidOut.not() -> bottom
+      else -> sheetY()
     }
+    runnable()
+    moveSheetTo(savedY, animate = false)
   }
 
   private fun sheetY(): Int {
@@ -86,7 +98,7 @@ class BottomShietOverlay(
       }
 
       sheetAnimator = ObjectAnimator.ofInt(sheetY(), y).apply {
-        duration = 4000
+        duration = 400
         setInterpolator(interpolator)
         addUpdateListener { anim ->
           val nextY = anim.animatedValue as Int
@@ -115,28 +127,24 @@ class BottomShietOverlay(
     currentState = state
 
     if (hasSheet) {
-      invalidate()
-      doOnPreDraw {
+      doOnLayout {
         val exhausted = when (currentState) {
           EXPANDED -> {
             // Keep aligned with the top if the sheet extends beyond
             // the overlay's bounds. Otherwise, align with the bottom.
-            // Update: this seems to happen automatically.
-            moveSheetTo(sheetTopBound, animate = true)
+            moveSheetTo(sheetTopBound, animate = animate)
           }
           PEEKING -> {
             // Keep the sheet at peek height.
             val clampedPeekHeight = peekHeight!!.coerceAtMost(shietView.height)
             val peekOffsetFromTop = heightMinusPadding - clampedPeekHeight
-            moveSheetTo(peekOffsetFromTop, animate = true)
+            moveSheetTo(peekOffsetFromTop, animate = animate)
           }
-          HIDDEN -> moveSheetTo(bottom, animate = true)
+          HIDDEN -> moveSheetTo(bottom, animate = animate)
         }
       }
     }
   }
-
-  private var distanceDragged = 0
 
   override fun onStartNestedScroll(child: View, target: View, axes: Int, type: Int): Boolean {
     // Accept all nested scroll events from the child. The decision of whether
@@ -153,13 +161,7 @@ class BottomShietOverlay(
     // For backward compatibility reasons, a nested scroll stops _twice_.
     // Once when the user stops dragging and once again when the content
     // stops flinging.
-    if (type == TYPE_TOUCH) {
-      onRelease()
-    }
-  }
-
-  private fun onRelease() {
-    if (distanceDragged != 0) {
+    if (type == TYPE_TOUCH && distanceDragged != 0) {
       val upwards = distanceDragged < 0
       val nextState = when (currentState) {
         EXPANDED -> if (upwards) EXPANDED else PEEKING

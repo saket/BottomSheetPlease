@@ -11,8 +11,7 @@ interface SimpleNestedScrollingParent : NestedScrollingParent2 {
 //    return true
 //  }
 
-  override fun onNestedScrollAccepted(child: View, target: View, axes: Int, type: Int) {
-  }
+  override fun onNestedScrollAccepted(child: View, target: View, axes: Int, type: Int) = Unit
 
   override fun onNestedScroll(
     target: View,

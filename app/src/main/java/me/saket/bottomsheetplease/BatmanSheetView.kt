@@ -5,12 +5,19 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Paint.ANTI_ALIAS_FLAG
+import android.graphics.drawable.PaintDrawable
 import android.util.TypedValue
 import android.view.View
 import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
 import android.widget.FrameLayout.LayoutParams.MATCH_PARENT
 import android.widget.TextView
+import android.widget.Toast
 import androidx.core.widget.NestedScrollView
+import com.jakewharton.rxbinding3.view.detaches
+import io.reactivex.Observable
+import io.reactivex.android.schedulers.AndroidSchedulers.mainThread
+import java.util.concurrent.TimeUnit.SECONDS
 import kotlin.random.Random
 
 @SuppressLint("CheckResult", "SetTextI18n")
@@ -18,39 +25,45 @@ class BatmanSheetView(context: Context) : NestedScrollView(context) {
 
   private val textView = TextView(context).apply {
     text = BATMAN_IPSUM
+    textSize = 16f
+    setLineSpacing(0f, 1.5f)
     setPadding(dip(16), dip(16), dip(16), dip(16))
-    setBackgroundColor(Color.YELLOW)
   }
 
-  private val dimensionsPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-    color = Color.DKGRAY
+  private val dimensionsPaint = Paint(ANTI_ALIAS_FLAG).apply {
+    color = Color.BLACK
+    alpha = 20
     strokeWidth = dip(2).toFloat()
   }
+
+  private var autoChangeHeight = false
 
   init {
     isFillViewport = true
     addView(textView)
     setPadding(dip(16), dip(16), dip(16), dip(16))
-    setBackgroundColor(Color.BLUE)
     setWillNotDraw(false)
-
     layoutParams = LayoutParams(MATCH_PARENT, WRAP_CONTENT)
+    background = PaintDrawable(Color.WHITE).apply {
+      setCornerRadii(floatArrayOf(dip(24f), dip(24f), dip(24f), dip(24f), 0f, 0f, 0f, 0f))
+    }
 
-    // Change the height while the sheet's entry animation is ongoing.
-    //Observable.interval(1, SECONDS, mainThread())
-    //    .takeUntil(detaches())
-    //    .subscribe {
-    //      textView.text = BATMAN_IPSUM.substring(0, Random.nextInt(until = BATMAN_IPSUM.length / 2))
-    //    }
+    Observable.interval(1, SECONDS, mainThread())
+        .takeUntil(detaches())
+        .subscribe {
+          if (autoChangeHeight) {
+            textView.text = BATMAN_IPSUM.substring(0, Random.nextInt(until = BATMAN_IPSUM.length))
+          }
+        }
 
     textView.setOnClickListener {
-      textView.text = BATMAN_IPSUM.substring(0, Random.nextInt(until = BATMAN_IPSUM.length / 2))
-//      Timber.w("sheet clicked")
+      autoChangeHeight = !autoChangeHeight
+      Toast.makeText(context, "Auto-changing ${if (autoChangeHeight) "enabled" else "disabled"}", Toast.LENGTH_SHORT).show()
     }
   }
 
-  override fun draw(canvas: Canvas) {
-    super.draw(canvas)
+  override fun onDraw(canvas: Canvas) {
+    super.onDraw(canvas)
     canvas.drawLine(0f, 0f, width.toFloat(), textView.height.toFloat() + paddingTop, dimensionsPaint)
     canvas.drawLine(width.toFloat(), 0f, 0f, textView.height.toFloat() + paddingTop, dimensionsPaint)
   }
@@ -90,3 +103,10 @@ fun View.dip(value: Int): Int =
       value.toFloat(),
       resources.displayMetrics
   ).toInt()
+
+fun View.dip(value: Float): Float =
+  TypedValue.applyDimension(
+      TypedValue.COMPLEX_UNIT_DIP,
+      value,
+      resources.displayMetrics
+  )

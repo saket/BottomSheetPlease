@@ -2,7 +2,6 @@ package me.saket.bottomsheetplease
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.graphics.Color
 import android.widget.Button
 import androidx.core.view.doOnLayout
 import com.squareup.contour.ContourLayout
@@ -37,10 +36,10 @@ class MainView(context: Context) : ContourLayout(context) {
   }
 
   private val sheetOverlay = BottomShietOverlay(context).apply {
-    peekHeight = 200.dip
+    peekHeight = dip(200)
+    elevation = dip(20f)
     setState(BottomShietState.PEEKING)
 
-    setBackgroundColor(Color.CYAN)
     applyLayout(
         x = matchParentX(),
         y = matchParentY()
@@ -58,22 +57,9 @@ class MainView(context: Context) : ContourLayout(context) {
       sheetOverlay.setState(state)
     }
 
-    expandedButton.setOnClickListener {
-      moveToState(BottomShietState.EXPANDED)
-    }
-
-    peekButton.setOnClickListener {
-      moveToState(BottomShietState.PEEKING)
-    }
-
-    hiddenButton.setOnClickListener {
-      moveToState(BottomShietState.HIDDEN)
-    }
-
-    sheetOverlay.setOnClickListener {
-//      Timber.w("removing sheet")
-//      sheetOverlay.removeAllViews()
-    }
+    expandedButton.setOnClickListener { moveToState(BottomShietState.EXPANDED) }
+    peekButton.setOnClickListener { moveToState(BottomShietState.PEEKING) }
+    hiddenButton.setOnClickListener { moveToState(BottomShietState.HIDDEN) }
 
     doOnLayout {
       peekButton.performClick()
