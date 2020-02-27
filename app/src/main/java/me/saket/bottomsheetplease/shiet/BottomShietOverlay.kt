@@ -3,6 +3,7 @@ package me.saket.bottomsheetplease.shiet
 import android.annotation.SuppressLint
 import android.content.Context
 import android.view.Gravity.BOTTOM
+import android.view.MotionEvent
 import android.view.View
 import android.view.animation.Interpolator
 import android.widget.FrameLayout
@@ -70,7 +71,7 @@ class BottomShietOverlay(
 //    if (shietView.top != y) {
 //      shietView.offsetTopAndBottom(y - shietView.top)
 //    }
-    Timber.d("animating to $y")
+//    Timber.d("animating to $y")
 
     // Copied from BottomSheetBehavior.
     val interpolator = Interpolator { t ->
@@ -91,7 +92,7 @@ class BottomShietOverlay(
 //    shietView.offsetTopAndBottom(dy)
     if (dy != 0) {
       shietView.animate().cancel()
-      Timber.i("moving by $dy")
+//      Timber.i("moving by $dy")
       shietView.translationY += dy
     }
   }
@@ -103,8 +104,6 @@ class BottomShietOverlay(
     }
 
     currentState = state
-
-    // TODO: animate?
 
     if (hasSheet) {
       doOnLayout {
@@ -132,7 +131,9 @@ class BottomShietOverlay(
     // Accept all nested scroll events from the child. The decision of whether
     // or not to actually scroll is calculated inside onNestedPreScroll().
     if (type == TYPE_TOUCH) {
+      dragReleasedAtTop = true
       sheetYOnStart = sheetY()
+      isDragging = true
     }
     return true
   }
@@ -142,24 +143,30 @@ class BottomShietOverlay(
 
 //    Timber.i("onStopNestedScroll(type=$type)")
 
+    ViewCompat.stopNestedScroll(this, TYPE_TOUCH)
+    ViewCompat.stopNestedScroll(this, TYPE_NON_TOUCH)
+
     // For backward compatibility reasons, a nested scroll stops _twice_.
     // Once when the user stops dragging and once again when the content
     // stops flinging.
     if (type == TYPE_TOUCH) {
+      isDragging = false
+      Timber.i("------------")
+      Timber.i("Released at top? $dragReleasedAtTop")
       onRelease()
     }
   }
 
-  private fun onRelease() {
-    ViewCompat.stopNestedScroll(this, TYPE_TOUCH)
-    ViewCompat.stopNestedScroll(this, TYPE_NON_TOUCH)
+  private var dragReleasedAtTop = false
+  private var isDragging = false
 
+  private fun onRelease() {
     val dy = sheetY() - sheetYOnStart
-    Timber.i("------------------")
-    Timber.d("Settling sheet")
-    Timber.i("sheetYOnStart: $sheetYOnStart")
-    Timber.i("sheetY: ${sheetY()}")
-    Timber.i("dy: $dy")
+//    Timber.i("------------------")
+//    Timber.d("Settling sheet")
+//    Timber.i("sheetYOnStart: $sheetYOnStart")
+//    Timber.i("sheetY: ${sheetY()}")
+//    Timber.i("dy: $dy")
 
     if (dy != 0) {
       val upwards = dy < 0
@@ -168,26 +175,38 @@ class BottomShietOverlay(
         PEEKING -> if (upwards) EXPANDED else HIDDEN
         HIDDEN -> HIDDEN
       }
-      Timber.i("nextState: $nextState")
       setState(nextState)
     }
   }
 
-  override fun onNestedPreScroll(target: View, dx: Int, dy: Int, consumed: IntArray, type: Int) {
-    val consumeResult = computeNestedScrollToConsume(dy, isFling = type != TYPE_TOUCH)
-    consumed[1] = consumeResult.dyToConsume
-    moveSheetBy(-consumeResult.moveSheetBy)
+  override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+    if (ev.action == MotionEvent.ACTION_UP) {
+      dragReleasedAtTop = sheetY() == sheetTopBound
+    }
+    return super.dispatchTouchEvent(ev)
   }
 
-  private fun computeNestedScrollToConsume(dy: Int, isFling: Boolean): ConsumeResult {
+  override fun onNestedPreFling(target: View, velocityX: Float, velocityY: Float): Boolean {
+    // TODO: explain better.
+    // The sheet doesn't react to flings so transferring the velocity
+    // to the sheet's content when its released looks very sudden.
+    return if (dragReleasedAtTop) super.onNestedPreFling(target, velocityX, velocityY) else true
+  }
+
+  override fun onNestedPreScroll(target: View, dx: Int, dy: Int, consumed: IntArray, type: Int) {
+    val dyToConsume = computeNestedScrollToConsume(dy, isFling = type != TYPE_TOUCH)
+    consumed[1] = dyToConsume
+    moveSheetBy(-dyToConsume)
+  }
+
+  private fun computeNestedScrollToConsume(dy: Int, isFling: Boolean): Int {
     val isScrollingUpwards = dy > 0
     var moveSheetBy = 0
 
-//    if (isFling) {
-//      Timber.w("ignored $dy")
-//      moveSheetBy = 0
-//
-//    } else
+    if (isFling) {
+      moveSheetBy = 0
+
+    } else
       if (isScrollingUpwards) {
         val canSheetScrollUp = sheetY() > sheetTopBound
         if (canSheetScrollUp) {
@@ -209,20 +228,7 @@ class BottomShietOverlay(
         }
       }
 
-    // Allow flings on the content only once the sheet can't scroll further.
-//    val shouldBlockFlings = sheetY() != sheetTopBound
-//    val dyToConsume = if (isFling && shouldBlockFlings) dy else moveSheetBy
-
-    val flingsAllowed = sheetY() == sheetTopBound
-    val dyToConsume = if (isFling) {
-      if (flingsAllowed) moveSheetBy else dy
-    } else {
-      if (isFling) dy else moveSheetBy
-    }
-
-    Timber.i("shouldBlockFlings? ${!flingsAllowed}")
-    Timber.i("dyToConsume: $dyToConsume")
-    return ConsumeResult(dyToConsume, moveSheetBy)
+    return moveSheetBy
   }
 
   private val heightMinusPadding: Int

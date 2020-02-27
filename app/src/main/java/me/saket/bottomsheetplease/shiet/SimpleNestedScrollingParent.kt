@@ -2,7 +2,6 @@ package me.saket.bottomsheetplease.shiet
 
 import android.view.View
 import androidx.core.view.NestedScrollingParent2
-import timber.log.Timber
 
 interface SimpleNestedScrollingParent : NestedScrollingParent2 {
 
@@ -13,7 +12,6 @@ interface SimpleNestedScrollingParent : NestedScrollingParent2 {
 //  }
 
   override fun onNestedScrollAccepted(child: View, target: View, axes: Int, type: Int) {
-    Timber.i("--------------------------")
   }
 
   override fun onNestedScroll(
