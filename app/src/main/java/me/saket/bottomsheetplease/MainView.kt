@@ -8,7 +8,6 @@ import androidx.core.view.doOnLayout
 import com.squareup.contour.ContourLayout
 import me.saket.bottomsheetplease.shiet.BottomShietOverlay
 import me.saket.bottomsheetplease.shiet.BottomShietState
-import timber.log.Timber
 
 @SuppressLint("SetTextI18n", "CheckResult")
 class MainView(context: Context) : ContourLayout(context) {
@@ -72,7 +71,7 @@ class MainView(context: Context) : ContourLayout(context) {
     }
 
     sheetOverlay.setOnClickListener {
-      Timber.w("removing sheet")
+//      Timber.w("removing sheet")
 //      sheetOverlay.removeAllViews()
     }
 

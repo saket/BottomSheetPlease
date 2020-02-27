@@ -59,6 +59,12 @@ class BottomShietOverlay(
   override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
     super.onLayout(changed, left, top, right, bottom)
 
+    if (hasSheet) {
+      Timber.i("---------------")
+      Timber.i("onLayout()")
+      Timber.i("Sheet height: ${shietView.height}")
+    }
+
     // Setting the state again will ensure the
     // sheet is re-positioned w.r.t. the new bounds.
     if (hasSheet) {
@@ -72,6 +78,8 @@ class BottomShietOverlay(
 
   private fun moveSheetTo(y: Int, animate: Boolean = false) {
     if (shietView.top == y) {
+      sheetAnimator.cancel()  // todo: remove
+      Timber.w("ignoring because sheet is already at $y (shietView.top = ${shietView.top})")
       return
     }
 
@@ -85,11 +93,13 @@ class BottomShietOverlay(
         t * t * t * t * t + 1.0f
       }
 
+      Timber.i("Animating to $y")
       sheetAnimator = ObjectAnimator.ofInt(sheetY(), y).apply {
-        duration = 400
+        duration = 4000
         setInterpolator(interpolator)
         addUpdateListener { anim ->
           val nextY = anim.animatedValue as Int
+          Timber.i("Animating $nextY (sheet y: ${sheetY()})")
           shietView.offsetTopAndBottom(nextY - shietView.top)
         }
         start()
@@ -126,7 +136,9 @@ class BottomShietOverlay(
           }
           PEEKING -> {
             // Keep the sheet at peek height.
-            val peekOffsetFromTop = height - peekHeight!!.coerceAtMost(shietView.height)
+            val clampedPeekHeight = peekHeight!!.coerceAtMost(shietView.height)
+            val peekOffsetFromTop = heightMinusPadding - clampedPeekHeight
+            Timber.i("peek offset = $peekOffsetFromTop (height-padd = $heightMinusPadding, adjustedPeekHeight = $clampedPeekHeight)")
             moveSheetTo(peekOffsetFromTop, animate = true)
           }
           HIDDEN -> moveSheetTo(bottom, animate = true)
@@ -237,7 +249,9 @@ class BottomShietOverlay(
   private val sheetTopBound: Int
     get() {
       check(isLaidOut)
-      return max(paddingTop, heightMinusPadding - shietView.height)
+      val bound = max(paddingTop, heightMinusPadding - shietView.height)
+      Timber.i("top bound = $bound (height-padd = $heightMinusPadding, sheet height = ${shietView.height})")
+      return bound
     }
 
   private val sheetBottomBound: Int

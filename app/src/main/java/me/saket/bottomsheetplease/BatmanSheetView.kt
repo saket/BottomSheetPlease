@@ -44,7 +44,7 @@ class BatmanSheetView(context: Context) : NestedScrollView(context) {
     //    }
 
     textView.setOnClickListener {
-      textView.text = BATMAN_IPSUM.substring(0, Random.nextInt(until = BATMAN_IPSUM.length))
+      textView.text = BATMAN_IPSUM.substring(0, Random.nextInt(until = BATMAN_IPSUM.length / 2))
 //      Timber.w("sheet clicked")
     }
   }
