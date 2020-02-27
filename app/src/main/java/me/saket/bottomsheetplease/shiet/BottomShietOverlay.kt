@@ -4,7 +4,6 @@ import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.content.Context
-import android.view.Gravity.BOTTOM
 import android.view.MotionEvent
 import android.view.MotionEvent.ACTION_DOWN
 import android.view.MotionEvent.ACTION_UP
@@ -14,7 +13,6 @@ import android.widget.FrameLayout
 import androidx.annotation.Px
 import androidx.core.view.ViewCompat.TYPE_TOUCH
 import androidx.core.view.doOnPreDraw
-import androidx.core.view.updateLayoutParams
 import me.saket.bottomsheetplease.shiet.BottomShietState.EXPANDED
 import me.saket.bottomsheetplease.shiet.BottomShietState.HIDDEN
 import me.saket.bottomsheetplease.shiet.BottomShietState.PEEKING
@@ -44,11 +42,7 @@ class BottomShietOverlay(
   override fun onViewAdded(child: View) {
     super.onViewAdded(child)
     check(childCount == 1) { "Can only have one direct child that acts as the sheet." }
-
     _shietView = child
-    shietView.updateLayoutParams<LayoutParams> {
-      gravity = BOTTOM
-    }
   }
 
   override fun onViewRemoved(child: View) {
@@ -78,8 +72,6 @@ class BottomShietOverlay(
 
   private fun moveSheetTo(y: Int, animate: Boolean = false) {
     if (shietView.top == y) {
-      sheetAnimator.cancel()  // todo: remove
-      Timber.w("ignoring because sheet is already at $y (shietView.top = ${shietView.top})")
       return
     }
 
@@ -93,13 +85,11 @@ class BottomShietOverlay(
         t * t * t * t * t + 1.0f
       }
 
-      Timber.i("Animating to $y")
       sheetAnimator = ObjectAnimator.ofInt(sheetY(), y).apply {
         duration = 4000
         setInterpolator(interpolator)
         addUpdateListener { anim ->
           val nextY = anim.animatedValue as Int
-          Timber.i("Animating $nextY (sheet y: ${sheetY()})")
           shietView.offsetTopAndBottom(nextY - shietView.top)
         }
         start()
@@ -138,7 +128,6 @@ class BottomShietOverlay(
             // Keep the sheet at peek height.
             val clampedPeekHeight = peekHeight!!.coerceAtMost(shietView.height)
             val peekOffsetFromTop = heightMinusPadding - clampedPeekHeight
-            Timber.i("peek offset = $peekOffsetFromTop (height-padd = $heightMinusPadding, adjustedPeekHeight = $clampedPeekHeight)")
             moveSheetTo(peekOffsetFromTop, animate = true)
           }
           HIDDEN -> moveSheetTo(bottom, animate = true)
@@ -249,9 +238,7 @@ class BottomShietOverlay(
   private val sheetTopBound: Int
     get() {
       check(isLaidOut)
-      val bound = max(paddingTop, heightMinusPadding - shietView.height)
-      Timber.i("top bound = $bound (height-padd = $heightMinusPadding, sheet height = ${shietView.height})")
-      return bound
+      return max(paddingTop, heightMinusPadding - shietView.height)
     }
 
   private val sheetBottomBound: Int
