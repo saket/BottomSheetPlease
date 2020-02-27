@@ -71,6 +71,14 @@ class BatmanSheetView(context: Context) : NestedScrollView(context) {
        This isn't a car. Bats frighten me. It's time my enemies shared my dread. No guns, no killing.
 
        I'm Batman Well, you see... I'm buying this hotel and setting some new rules about the pool area. It was a dog. It was a big dog. I will go back to Gotham and I will fight men Iike this but I will not become an executioner.
+       
+       Accomplice? I'm gonna tell them the whole thing was your idea. I'm not wearing hockey pads. Someone like you. Someone who'll rattle the cages. No guns, no killing. I'll be standing where l belong. Between you and the peopIe of Gotham.
+
+       Well, you see... I'm buying this hotel and setting some new rules about the pool area.
+       
+       It was a dog. It was a big dog. I'm not wearing hockey pads. This isn't a car. I can't do that as Bruce Wayne... as a man. I'm flesh and blood. I can be ignored, destroyed. But as a symbol, I can be incorruptible, I can be everlasting.
+       
+       It was a dog. It was a big dog. Someone like you. Someone who'll rattle the cages.
     """.trimIndent()
   }
 }

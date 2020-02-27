@@ -4,14 +4,18 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.view.Gravity.BOTTOM
 import android.view.View
+import android.view.animation.Interpolator
 import android.widget.FrameLayout
 import androidx.annotation.Px
+import androidx.core.view.ViewCompat
+import androidx.core.view.ViewCompat.TYPE_NON_TOUCH
 import androidx.core.view.ViewCompat.TYPE_TOUCH
 import androidx.core.view.doOnLayout
 import androidx.core.view.updateLayoutParams
 import me.saket.bottomsheetplease.shiet.BottomShietState.EXPANDED
 import me.saket.bottomsheetplease.shiet.BottomShietState.HIDDEN
 import me.saket.bottomsheetplease.shiet.BottomShietState.PEEKING
+import timber.log.Timber
 import kotlin.math.max
 
 @SuppressLint("ViewConstructor")
@@ -19,25 +23,31 @@ class BottomShietOverlay(
   context: Context
 ) : FrameLayout(context), SimpleNestedScrollingParent {
 
-  private lateinit var shietView: View
+  private var _shietView: View? = null
+  private val shietView: View
+    get() {
+      check(_shietView != null) { "Sheet isn't added yte" }
+      return _shietView!!
+    }
+  private val hasSheet
+    get() = _shietView != null
 
   @Px var peekHeight: Int? = null
   private var currentState: BottomShietState = HIDDEN
-
-  private val heightMinusPadding
-    get() = height - paddingTop - paddingBottom
-
-  private val hasSheet
-    get() = ::shietView.isInitialized
 
   override fun onViewAdded(child: View) {
     super.onViewAdded(child)
     check(childCount == 1) { "Can only have one direct child that acts as the sheet." }
 
-    shietView = child
+    _shietView = child
     shietView.updateLayoutParams<LayoutParams> {
       gravity = BOTTOM
     }
+  }
+
+  override fun onViewRemoved(child: View) {
+    super.onViewRemoved(child)
+    _shietView = null
   }
 
   override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
@@ -50,14 +60,40 @@ class BottomShietOverlay(
     }
   }
 
+  // TODO: Wanna move everything to floats?
+  private fun sheetY(): Int {
+//    return shietView.top
+    return shietView.translationY.toInt()
+  }
+
   private fun moveSheetTo(y: Int) {
-    if (shietView.top != y) {
-      shietView.offsetTopAndBottom(y - shietView.top)
+//    if (shietView.top != y) {
+//      shietView.offsetTopAndBottom(y - shietView.top)
+//    }
+    Timber.d("animating to $y")
+
+    // Copied from BottomSheetBehavior.
+    val interpolator = Interpolator { t ->
+      var t = t
+      t -= 1.0f
+      t * t * t * t * t + 1.0f
     }
+
+    shietView.animate().cancel()
+    shietView.animate()
+        .translationY(y.toFloat())
+        .setInterpolator(interpolator)
+        .setDuration(400)
+        .start()
   }
 
   private fun moveSheetBy(dy: Int) {
-    shietView.offsetTopAndBottom(dy)
+//    shietView.offsetTopAndBottom(dy)
+    if (dy != 0) {
+      shietView.animate().cancel()
+      Timber.i("moving by $dy")
+      shietView.translationY += dy
+    }
   }
 
   /** setState()? moveToState()? animateToState()? */
@@ -77,7 +113,7 @@ class BottomShietOverlay(
             // Keep aligned with the top if the sheet extends beyond
             // the overlay's bounds. Otherwise, align with the bottom.
             // Update: this seems to happen automatically.
-            moveSheetTo(max(paddingTop, heightMinusPadding - shietView.height))
+            moveSheetTo(sheetTopBound)
           }
           PEEKING -> {
             // Keep the sheet at peek height.
@@ -90,17 +126,50 @@ class BottomShietOverlay(
     }
   }
 
+  private var sheetYOnStart = 0
+
+  override fun onStartNestedScroll(child: View, target: View, axes: Int, type: Int): Boolean {
+    // Accept all nested scroll events from the child. The decision of whether
+    // or not to actually scroll is calculated inside onNestedPreScroll().
+    if (type == TYPE_TOUCH) {
+      sheetYOnStart = sheetY()
+    }
+    return true
+  }
+
   override fun onStopNestedScroll(target: View, type: Int) {
     super.onStopNestedScroll(target)
+
+//    Timber.i("onStopNestedScroll(type=$type)")
 
     // For backward compatibility reasons, a nested scroll stops _twice_.
     // Once when the user stops dragging and once again when the content
     // stops flinging.
-    val hasStoppedDragging = type == TYPE_TOUCH
+    if (type == TYPE_TOUCH) {
+      onRelease()
+    }
+  }
 
-    if (hasStoppedDragging) {
-      // TODO: do something for real.
-      setState(currentState, animate = true)
+  private fun onRelease() {
+    ViewCompat.stopNestedScroll(this, TYPE_TOUCH)
+    ViewCompat.stopNestedScroll(this, TYPE_NON_TOUCH)
+
+    val dy = sheetY() - sheetYOnStart
+    Timber.i("------------------")
+    Timber.d("Settling sheet")
+    Timber.i("sheetYOnStart: $sheetYOnStart")
+    Timber.i("sheetY: ${sheetY()}")
+    Timber.i("dy: $dy")
+
+    if (dy != 0) {
+      val upwards = dy < 0
+      val nextState = when (currentState) {
+        EXPANDED -> if (upwards) EXPANDED else PEEKING
+        PEEKING -> if (upwards) EXPANDED else HIDDEN
+        HIDDEN -> HIDDEN
+      }
+      Timber.i("nextState: $nextState")
+      setState(nextState)
     }
   }
 
@@ -112,40 +181,67 @@ class BottomShietOverlay(
 
   private fun computeNestedScrollToConsume(dy: Int, isFling: Boolean): ConsumeResult {
     val isScrollingUpwards = dy > 0
-    val sheetTopBound = max(paddingTop, heightMinusPadding - shietView.height)
-    val sheetBottomBound = height - paddingBottom
-
     var moveSheetBy = 0
 
-    if (isFling) {
-      moveSheetBy = 0
+//    if (isFling) {
+//      Timber.w("ignored $dy")
+//      moveSheetBy = 0
+//
+//    } else
+      if (isScrollingUpwards) {
+        val canSheetScrollUp = sheetY() > sheetTopBound
+        if (canSheetScrollUp) {
+          moveSheetBy = when {
+            // Don't let the sheet go beyond its top bounds.
+            sheetY() - dy < sheetTopBound -> sheetY() - sheetTopBound
+            else -> dy
+          }
+        }
 
-    } else if (isScrollingUpwards) {
-      val canSheetScrollUp = shietView.top > sheetTopBound
-      if (canSheetScrollUp) {
-        moveSheetBy = when {
-          // Don't let the sheet go beyond its top bounds.
-          shietView.top - dy < sheetTopBound -> shietView.top - sheetTopBound
-          else -> dy
+      } else {
+        val canSheetContentScrollDown = shietView.canScrollVertically(-1)
+        if (canSheetContentScrollDown.not()) {
+          moveSheetBy = when {
+            // Don't let the sheet go beyond its bottom bounds.
+            sheetY() - dy > sheetBottomBound -> sheetY() - sheetBottomBound
+            else -> dy
+          }
         }
       }
-
-    } else {
-      val canSheetContentScrollDown = shietView.canScrollVertically(-1)
-      if (canSheetContentScrollDown.not()) {
-        moveSheetBy = when {
-          // Don't let the sheet go beyond its bottom bounds.
-          shietView.top - dy > sheetBottomBound -> shietView.top - sheetBottomBound
-          else -> dy
-        }
-      }
-    }
 
     // Allow flings on the content only once the sheet can't scroll further.
-    val shouldBlockFlings = shietView.top != sheetTopBound
-    val dyToConsume = if (shouldBlockFlings) dy else moveSheetBy
+//    val shouldBlockFlings = sheetY() != sheetTopBound
+//    val dyToConsume = if (isFling && shouldBlockFlings) dy else moveSheetBy
+
+    val flingsAllowed = sheetY() == sheetTopBound
+    val dyToConsume = if (isFling) {
+      if (flingsAllowed) moveSheetBy else dy
+    } else {
+      if (isFling) dy else moveSheetBy
+    }
+
+    Timber.i("shouldBlockFlings? ${!flingsAllowed}")
+    Timber.i("dyToConsume: $dyToConsume")
     return ConsumeResult(dyToConsume, moveSheetBy)
   }
+
+  private val heightMinusPadding: Int
+    get() {
+      check(isLaidOut)
+      return height - paddingTop - paddingBottom
+    }
+
+  private val sheetTopBound: Int
+    get() {
+      check(isLaidOut)
+      return max(paddingTop, heightMinusPadding - shietView.height)
+    }
+
+  private val sheetBottomBound: Int
+    get() {
+      check(isLaidOut)
+      return height - paddingBottom
+    }
 
   class ConsumeResult(val dyToConsume: Int, val moveSheetBy: Int)
 }

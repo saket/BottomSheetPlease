@@ -8,6 +8,7 @@ import androidx.core.view.doOnLayout
 import com.squareup.contour.ContourLayout
 import me.saket.bottomsheetplease.shiet.BottomShietOverlay
 import me.saket.bottomsheetplease.shiet.BottomShietState
+import timber.log.Timber
 
 @SuppressLint("SetTextI18n", "CheckResult")
 class MainView(context: Context) : ContourLayout(context) {
@@ -50,23 +51,28 @@ class MainView(context: Context) : ContourLayout(context) {
   init {
     setBackgroundColor(context.getColor(R.color.gray_200))
 
-    expandedButton.setOnClickListener {
+    val moveToState = { state: BottomShietState ->
       if (sheetOverlay.childCount == 0) {
         val sheetView = BatmanSheetView(context)
         sheetOverlay.addView(sheetView)
       }
-      sheetOverlay.setState(BottomShietState.EXPANDED)
+      sheetOverlay.setState(state)
+    }
+
+    expandedButton.setOnClickListener {
+      moveToState(BottomShietState.EXPANDED)
     }
 
     peekButton.setOnClickListener {
-      sheetOverlay.setState(BottomShietState.PEEKING)
+      moveToState(BottomShietState.PEEKING)
     }
 
     hiddenButton.setOnClickListener {
-      sheetOverlay.setState(BottomShietState.HIDDEN)
+      moveToState(BottomShietState.HIDDEN)
     }
 
     sheetOverlay.setOnClickListener {
+      Timber.w("removing sheet")
       sheetOverlay.removeAllViews()
     }
 
